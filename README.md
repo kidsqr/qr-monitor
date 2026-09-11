@@ -20,6 +20,8 @@ Scheduled monitoring and live delivery remain disabled until the owner configure
 
 The private source token must be restricted to the designated repository. Source changes require review and an explicit update of the pinned revision.
 
+Manual `source-check`, `email-auth`, and `slack-auth` operations perform read-only source or non-sending authentication diagnostics. They report fixed outcomes only; authentication does not prove notification delivery. The `test-start` and `test-finish` operations require a separately approved test and explicit confirmation, use a separate private one-shot test journal, and work only while live monitoring is disabled. `test-status` reads that test journal without sending. Test messages are labeled synthetic and never create a production incident or claim production recovery.
+
 Set the repository variable `QR_MONITOR_MAINTENANCE_ENABLED` to `1` before scheduled or manually dispatched `maintain` operations can write. An authorized manual `check` remains read-only and can run while the variable is unset. Maintenance reports only `disabled`, `current`, `due`, or `maintained`, with fixed refusal/failure codes on errors.
 
 This maintenance reduces inactivity-disable risk only while GitHub Actions schedules continue to run. It cannot run during a GitHub outage, repair a disabled scheduler, or notify anyone that scheduled runs are missing; missing-schedule notification remains a limitation.

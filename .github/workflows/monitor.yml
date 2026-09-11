@@ -7,9 +7,26 @@ on:
       mode:
         description: Monitor operation
         type: choice
-        options: [check, status, bootstrap, live]
+        options:
+          [
+            check,
+            status,
+            bootstrap,
+            live,
+            source-check,
+            email-auth,
+            slack-auth,
+            test-start,
+            test-finish,
+            test-status,
+          ]
         default: check
         required: true
+      confirm_test_send:
+        description: Type SEND_QR_DEV_TEST only for an approved connection test
+        type: string
+        default: ''
+        required: false
 permissions:
   contents: read
 concurrency:
@@ -28,7 +45,7 @@ jobs:
       run:
         working-directory: tooling
     env:
-      QR_MONITOR_CODE_SHA: be696f412c139e56502d39d8932a5ac44645a601
+      QR_MONITOR_CODE_SHA: 8cdea89605bdad51a87bc8999d428cf966f8907a
     steps:
       - uses: actions/checkout@9f698171ed81b15d1823a05fc7211befd50c8ae0 # v6.0.3
         with:
@@ -42,9 +59,15 @@ jobs:
           node-version-file: tooling/.node-version
       - run: npm ci --ignore-scripts --no-audit --no-fund
       - name: Run bounded monitor
+        if: >-
+          inputs.mode != 'source-check' &&
+          inputs.mode != 'email-auth' &&
+          inputs.mode != 'slack-auth'
         run: node scripts/monitor-runner.mjs
         env:
           INPUT_MODE: ${{ inputs.mode }}
+          INPUT_CONFIRM_TEST_SEND: ${{ inputs.confirm_test_send }}
+          INPUT_TEST_ID: ${{ secrets.QR_MONITOR_TEST_ID }}
           QR_MONITOR_PRIVATE_TOKEN: ${{ secrets.QR_MONITOR_PRIVATE_TOKEN }}
           QR_MONITOR_ENABLED: ${{ vars.QR_MONITOR_ENABLED }}
           QR_MONITOR_R2_READ_ONLY_CONFIRMED: ${{ vars.QR_MONITOR_R2_READ_ONLY_CONFIRMED }}
@@ -53,3 +76,25 @@ jobs:
           QR_MONITOR_R2_SECRET_ACCESS_KEY: ${{ secrets.QR_MONITOR_R2_SECRET_ACCESS_KEY }}
           QR_MONITOR_SLACK_TOKEN: ${{ secrets.QR_MONITOR_SLACK_TOKEN }}
           QR_MONITOR_GMAIL_APP_PASSWORD: ${{ secrets.QR_MONITOR_GMAIL_APP_PASSWORD }}
+      - name: Diagnose source read
+        if: inputs.mode == 'source-check'
+        run: node scripts/monitor-runner.mjs
+        env:
+          INPUT_MODE: ${{ inputs.mode }}
+          QR_MONITOR_PRIVATE_TOKEN: ${{ secrets.QR_MONITOR_PRIVATE_TOKEN }}
+          QR_MONITOR_R2_READ_ONLY_CONFIRMED: ${{ vars.QR_MONITOR_R2_READ_ONLY_CONFIRMED }}
+          QR_R2_ENDPOINT: ${{ secrets.QR_R2_ENDPOINT }}
+          QR_MONITOR_R2_ACCESS_KEY_ID: ${{ secrets.QR_MONITOR_R2_ACCESS_KEY_ID }}
+          QR_MONITOR_R2_SECRET_ACCESS_KEY: ${{ secrets.QR_MONITOR_R2_SECRET_ACCESS_KEY }}
+      - name: Diagnose email authentication
+        if: inputs.mode == 'email-auth'
+        run: node scripts/monitor-runner.mjs
+        env:
+          INPUT_MODE: ${{ inputs.mode }}
+          QR_MONITOR_GMAIL_APP_PASSWORD: ${{ secrets.QR_MONITOR_GMAIL_APP_PASSWORD }}
+      - name: Diagnose Slack authentication
+        if: inputs.mode == 'slack-auth'
+        run: node scripts/monitor-runner.mjs
+        env:
+          INPUT_MODE: ${{ inputs.mode }}
+          QR_MONITOR_SLACK_TOKEN: ${{ secrets.QR_MONITOR_SLACK_TOKEN }}
