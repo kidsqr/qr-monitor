@@ -45,7 +45,7 @@ jobs:
       run:
         working-directory: tooling
     env:
-      QR_MONITOR_CODE_SHA: 8cdea89605bdad51a87bc8999d428cf966f8907a
+      QR_MONITOR_CODE_SHA: 4ec6577186c931fd3f57c7f2c146b14a51af7463
     steps:
       - uses: actions/checkout@9f698171ed81b15d1823a05fc7211befd50c8ae0 # v6.0.3
         with:
