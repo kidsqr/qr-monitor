@@ -1,0 +1,55 @@
+name: Monitor public QR service
+on:
+  schedule:
+    - cron: '2-57/5 * * * *'
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: Monitor operation
+        type: choice
+        options: [check, status, bootstrap, live]
+        default: check
+        required: true
+permissions:
+  contents: read
+concurrency:
+  group: qr-production-monitor
+  cancel-in-progress: false
+jobs:
+  monitor:
+    if: >-
+      github.repository == 'kidsqr/qr-monitor' &&
+      github.ref == 'refs/heads/main' &&
+      ((github.event_name == 'workflow_dispatch' && inputs.mode != 'live') ||
+       vars.QR_MONITOR_ENABLED == '1')
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    defaults:
+      run:
+        working-directory: tooling
+    env:
+      QR_MONITOR_CODE_SHA: be696f412c139e56502d39d8932a5ac44645a601
+    steps:
+      - uses: actions/checkout@9f698171ed81b15d1823a05fc7211befd50c8ae0 # v6.0.3
+        with:
+          repository: kidsqr/qr-pages
+          ref: ${{ env.QR_MONITOR_CODE_SHA }}
+          token: ${{ secrets.QR_MONITOR_PRIVATE_TOKEN }}
+          path: tooling
+          persist-credentials: false
+      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+        with:
+          node-version-file: tooling/.node-version
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Run bounded monitor
+        run: node scripts/monitor-runner.mjs
+        env:
+          INPUT_MODE: ${{ inputs.mode }}
+          QR_MONITOR_PRIVATE_TOKEN: ${{ secrets.QR_MONITOR_PRIVATE_TOKEN }}
+          QR_MONITOR_ENABLED: ${{ vars.QR_MONITOR_ENABLED }}
+          QR_MONITOR_R2_READ_ONLY_CONFIRMED: ${{ vars.QR_MONITOR_R2_READ_ONLY_CONFIRMED }}
+          QR_R2_ENDPOINT: ${{ secrets.QR_R2_ENDPOINT }}
+          QR_MONITOR_R2_ACCESS_KEY_ID: ${{ secrets.QR_MONITOR_R2_ACCESS_KEY_ID }}
+          QR_MONITOR_R2_SECRET_ACCESS_KEY: ${{ secrets.QR_MONITOR_R2_SECRET_ACCESS_KEY }}
+          QR_MONITOR_SLACK_TOKEN: ${{ secrets.QR_MONITOR_SLACK_TOKEN }}
+          QR_MONITOR_GMAIL_APP_PASSWORD: ${{ secrets.QR_MONITOR_GMAIL_APP_PASSWORD }}
