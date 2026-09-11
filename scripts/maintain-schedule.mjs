@@ -6,7 +6,7 @@ const WORKFLOW_REF = `${REPOSITORY}/.github/workflows/maintenance.yml@refs/heads
 const MAIN_REF = 'refs/heads/main';
 const SHA_PATTERN = /^[0-9a-f]{40}$/;
 const RFC3339_PATTERN =
-  /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,9})?(?:Z|[+-]\d{2}:\d{2})$/;
+  /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d{1,9})?(?:Z|([+-])(\d{2}):(\d{2}))$/;
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 const FUTURE_TOLERANCE_MS = 5 * 60 * 1000;
 const MAX_RESPONSE_BYTES = 64 * 1024;
@@ -128,6 +128,38 @@ function validateReference(value, expectedSha, invalid = refuse) {
   return value.object.sha;
 }
 
+function parseRfc3339(value) {
+  const match = RFC3339_PATTERN.exec(value);
+  if (match === null) return Number.NaN;
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const hour = Number(match[4]);
+  const minute = Number(match[5]);
+  const second = Number(match[6]);
+  const offsetHour = match[8] === undefined ? 0 : Number(match[8]);
+  const offsetMinute = match[9] === undefined ? 0 : Number(match[9]);
+  const leapYear = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
+  const monthLengths = [31, leapYear ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+
+  if (
+    month < 1 ||
+    month > 12 ||
+    day < 1 ||
+    day > monthLengths[month - 1] ||
+    hour > 23 ||
+    minute > 59 ||
+    second > 59 ||
+    offsetHour > 23 ||
+    offsetMinute > 59
+  ) {
+    return Number.NaN;
+  }
+
+  return Date.parse(value);
+}
+
 function validateCommit(value, expectedSha, nowMs) {
   if (
     value === null ||
@@ -137,7 +169,6 @@ function validateCommit(value, expectedSha, nowMs) {
     value.committer === null ||
     typeof value.committer !== 'object' ||
     typeof value.committer.date !== 'string' ||
-    !RFC3339_PATTERN.test(value.committer.date) ||
     value.tree === null ||
     typeof value.tree !== 'object' ||
     !SHA_PATTERN.test(value.tree.sha ?? '') ||
@@ -146,7 +177,7 @@ function validateCommit(value, expectedSha, nowMs) {
     refuse();
   }
 
-  const committedAt = Date.parse(value.committer.date);
+  const committedAt = parseRfc3339(value.committer.date);
   if (!Number.isFinite(committedAt) || committedAt > nowMs + FUTURE_TOLERANCE_MS) refuse();
   return { committedAt, treeSha: value.tree.sha };
 }

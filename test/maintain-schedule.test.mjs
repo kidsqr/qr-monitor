@@ -270,6 +270,56 @@ test('refuses malformed and more-than-five-minutes-future commit dates', async (
   }
 });
 
+test('refuses impossible RFC3339 calendar, clock, and offset values before writes', async () => {
+  const dates = [
+    '2026-02-29T00:00:00Z',
+    '1900-02-29T00:00:00Z',
+    '2024-02-30T00:00:00Z',
+    '2026-04-31T00:00:00Z',
+    '2026-13-01T00:00:00Z',
+    '2026-01-01T24:00:00Z',
+    '2026-01-01T23:60:00Z',
+    '2026-01-01T23:59:60Z',
+    '2026-01-01T00:00:00+24:00',
+    '2026-01-01T00:00:00-23:60',
+  ];
+
+  for (const date of dates) {
+    const fake = queuedFetch(readRoutes(date));
+    await assert.rejects(
+      runMaintenance({
+        env: validEnv({ INPUT_MODE: 'maintain', QR_MONITOR_MAINTENANCE_ENABLED: '1' }),
+        fetchImpl: fake.fetchImpl,
+        now: () => NOW,
+      }),
+      { message: 'MAINTENANCE_REFUSED' },
+      date,
+    );
+    assert.equal(fake.calls.length, 3, date);
+    assert.ok(fake.calls.every((call) => call.options.method === 'GET'), date);
+  }
+});
+
+test('accepts valid RFC3339 leap-day and numeric-offset timestamps', async () => {
+  const cases = [
+    ['2024-02-29T23:59:59Z', new Date('2024-03-01T00:00:00Z')],
+    ['2000-02-29T23:59:59Z', new Date('2000-03-01T00:00:00Z')],
+    ['2026-09-11T20:30:00+09:00', NOW],
+  ];
+
+  for (const [date, now] of cases) {
+    const fake = queuedFetch(readRoutes(date));
+    const status = await runMaintenance({
+      env: validEnv({ INPUT_MODE: 'maintain', QR_MONITOR_MAINTENANCE_ENABLED: '1' }),
+      fetchImpl: fake.fetchImpl,
+      now: () => now,
+    });
+    assert.equal(status, 'current', date);
+    assert.equal(fake.calls.length, 3, date);
+    assert.ok(fake.calls.every((call) => call.options.method === 'GET'), date);
+  }
+});
+
 test('refuses unexpected public repository identity and shape', async () => {
   const cases = [
     repository({ private: true, visibility: 'private' }),
