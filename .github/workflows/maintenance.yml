@@ -1,0 +1,42 @@
+name: Maintain public schedule activity
+on:
+  schedule:
+    - cron: '37 4 * * 1'
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: Maintenance operation
+        type: choice
+        options: [check, maintain]
+        default: check
+        required: true
+permissions:
+  contents: read
+concurrency:
+  group: qr-monitor-maintenance
+  cancel-in-progress: false
+jobs:
+  maintenance:
+    if: >-
+      github.repository == 'kidsqr/qr-monitor' &&
+      github.ref == 'refs/heads/main' &&
+      (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@9f698171ed81b15d1823a05fc7211befd50c8ae0 # v6.0.3
+        with:
+          repository: kidsqr/qr-monitor
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+        with:
+          node-version: 24
+      - name: Check or maintain public schedule activity
+        run: node scripts/maintain-schedule.mjs
+        env:
+          INPUT_MODE: ${{ github.event_name == 'schedule' && 'maintain' || inputs.mode }}
+          QR_MONITOR_MAINTENANCE_ENABLED: ${{ vars.QR_MONITOR_MAINTENANCE_ENABLED }}
+          GITHUB_TOKEN: ${{ github.token }}
