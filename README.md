@@ -24,6 +24,8 @@ Manual `source-check`, `email-auth`, and `slack-auth` operations perform read-on
 
 Set the repository variable `QR_MONITOR_MAINTENANCE_ENABLED` to `1` before scheduled or manually dispatched `maintain` operations can write. An authorized manual `check` remains read-only and can run while the variable is unset. Maintenance reports only `disabled`, `current`, `due`, or `maintained`, with fixed refusal/failure codes on errors.
 
+An approved one-time Slack destination move uses `slack-move` with the explicit confirmation `MOVE_QR_SLACK_CHANNEL`, only while monitoring is disabled. It preserves production delivery history, records a separate one-shot receipt, and sends no email. Live monitoring requires a confirmed move receipt before routing subsequent replies. Rejected or ambiguous move attempts are not automatically retried.
+
 This maintenance reduces inactivity-disable risk only while GitHub Actions schedules continue to run. It cannot run during a GitHub outage, repair a disabled scheduler, or notify anyone that scheduled runs are missing; missing-schedule notification remains a limitation.
 
 Standard GitHub-hosted runners in public repositories are free under [GitHub's Actions billing policy](https://docs.github.com/en/actions/concepts/billing-and-usage). See also [schedule limitations](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#schedule) and [manual workflow permissions](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/manually-run-a-workflow).

@@ -19,11 +19,17 @@ on:
             test-start,
             test-finish,
             test-status,
+            slack-move,
           ]
         default: check
         required: true
       confirm_test_send:
         description: Type SEND_QR_DEV_TEST only for an approved connection test
+        type: string
+        default: ''
+        required: false
+      confirm_channel_move:
+        description: Type MOVE_QR_SLACK_CHANNEL only for the approved channel move
         type: string
         default: ''
         required: false
@@ -45,7 +51,7 @@ jobs:
       run:
         working-directory: tooling
     env:
-      QR_MONITOR_CODE_SHA: 4ec6577186c931fd3f57c7f2c146b14a51af7463
+      QR_MONITOR_CODE_SHA: 21ee56901a261c56be97f0b22962799a69cadabc
     steps:
       - uses: actions/checkout@9f698171ed81b15d1823a05fc7211befd50c8ae0 # v6.0.3
         with:
@@ -62,7 +68,8 @@ jobs:
         if: >-
           inputs.mode != 'source-check' &&
           inputs.mode != 'email-auth' &&
-          inputs.mode != 'slack-auth'
+          inputs.mode != 'slack-auth' &&
+          inputs.mode != 'slack-move'
         run: node scripts/monitor-runner.mjs
         env:
           INPUT_MODE: ${{ inputs.mode }}
@@ -76,6 +83,15 @@ jobs:
           QR_MONITOR_R2_SECRET_ACCESS_KEY: ${{ secrets.QR_MONITOR_R2_SECRET_ACCESS_KEY }}
           QR_MONITOR_SLACK_TOKEN: ${{ secrets.QR_MONITOR_SLACK_TOKEN }}
           QR_MONITOR_GMAIL_APP_PASSWORD: ${{ secrets.QR_MONITOR_GMAIL_APP_PASSWORD }}
+      - name: Move Slack channel
+        if: inputs.mode == 'slack-move'
+        run: node scripts/monitor-runner.mjs
+        env:
+          INPUT_MODE: ${{ inputs.mode }}
+          INPUT_CONFIRM_CHANNEL_MOVE: ${{ inputs.confirm_channel_move }}
+          QR_MONITOR_ENABLED: ${{ vars.QR_MONITOR_ENABLED }}
+          QR_MONITOR_PRIVATE_TOKEN: ${{ secrets.QR_MONITOR_PRIVATE_TOKEN }}
+          QR_MONITOR_SLACK_TOKEN: ${{ secrets.QR_MONITOR_SLACK_TOKEN }}
       - name: Diagnose source read
         if: inputs.mode == 'source-check'
         run: node scripts/monitor-runner.mjs
