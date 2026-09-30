@@ -1,0 +1,44 @@
+name: Observe private QR monitor heartbeat
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: qr-monitor-heartbeat-observer
+  cancel-in-progress: false
+jobs:
+  observe:
+    if: >-
+      github.repository == 'kidsqr/qr-monitor' &&
+      github.ref == 'refs/heads/main' &&
+      vars.QR_MONITOR_HEARTBEAT_OBSERVER_ENABLED == '1'
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@9f698171ed81b15d1823a05fc7211befd50c8ae0 # v6.0.3
+        with:
+          repository: kidsqr/qr-pages
+          ref: e5cbabb1aa523f3b13a7456d0a684abdf938a234
+          token: ${{ secrets.QR_MONITOR_PRIVATE_TOKEN }}
+          path: monitor-source
+          persist-credentials: false
+      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+        with:
+          node-version-file: monitor-source/.node-version
+          cache: npm
+          cache-dependency-path: monitor-source/package-lock.json
+      - name: Install pinned monitor dependencies
+        run: npm ci --ignore-scripts --no-audit --no-fund
+        working-directory: monitor-source
+      - name: Observe fixed private heartbeat
+        run: node --import tsx ops/monitor-heartbeat-observer.ts
+        working-directory: monitor-source
+        env:
+          QR_MONITOR_PRIVATE_TOKEN: ${{ secrets.QR_MONITOR_PRIVATE_TOKEN }}
+          QR_R2_ENDPOINT: ${{ secrets.QR_R2_ENDPOINT }}
+          QR_MONITOR_R2_ACCESS_KEY_ID: ${{ secrets.QR_MONITOR_R2_ACCESS_KEY_ID }}
+          QR_MONITOR_R2_SECRET_ACCESS_KEY: ${{ secrets.QR_MONITOR_R2_SECRET_ACCESS_KEY }}
+          QR_MONITOR_SLACK_TOKEN: ${{ secrets.QR_MONITOR_SLACK_TOKEN }}
+          QR_MONITOR_GMAIL_APP_PASSWORD: ${{ secrets.QR_MONITOR_GMAIL_APP_PASSWORD }}
