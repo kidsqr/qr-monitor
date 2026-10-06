@@ -3,6 +3,12 @@ on:
   schedule:
     - cron: '*/5 * * * *'
   workflow_dispatch:
+    inputs:
+      read_only:
+        description: Check current evidence without writing state or sending notices
+        required: false
+        type: boolean
+        default: true
 permissions:
   contents: read
 concurrency:
@@ -20,7 +26,7 @@ jobs:
       - uses: actions/checkout@9f698171ed81b15d1823a05fc7211befd50c8ae0 # v6.0.3
         with:
           repository: kidsqr/qr-pages
-          ref: 334b3faf53d3493107cb129751b2573a130ac9f7
+          ref: 6433cb5c32d5dffaa48053e715e7db979cdd3c04
           token: ${{ secrets.QR_MONITOR_PRIVATE_TOKEN }}
           path: monitor-source
           persist-credentials: false
@@ -32,10 +38,24 @@ jobs:
       - name: Install pinned monitor dependencies
         run: npm ci --ignore-scripts --no-audit --no-fund
         working-directory: monitor-source
+      - name: Check primary evidence without sending
+        if: github.event_name == 'workflow_dispatch' && inputs.read_only == true
+        run: node --import tsx ops/monitor-heartbeat-observer.ts --check
+        working-directory: monitor-source
+        env:
+          QR_MONITOR_DEPLOYMENT_POLICY: '1'
+          QR_MONITOR_PRIVATE_TOKEN: ${{ secrets.QR_MONITOR_PRIVATE_TOKEN }}
+          QR_MONITOR_EXPECTED_HOST: ${{ vars.QR_MONITOR_EXPECTED_HOST }}
+          QR_MONITOR_EXPECTED_RUNTIME_SHA256: ${{ vars.QR_MONITOR_EXPECTED_RUNTIME_SHA256 }}
+          QR_R2_ENDPOINT: ${{ secrets.QR_R2_ENDPOINT }}
+          QR_MONITOR_R2_ACCESS_KEY_ID: ${{ secrets.QR_MONITOR_R2_ACCESS_KEY_ID }}
+          QR_MONITOR_R2_SECRET_ACCESS_KEY: ${{ secrets.QR_MONITOR_R2_SECRET_ACCESS_KEY }}
       - name: Observe fixed private heartbeat
+        if: github.event_name != 'workflow_dispatch' || inputs.read_only != true
         run: node --import tsx ops/monitor-heartbeat-observer.ts
         working-directory: monitor-source
         env:
+          QR_MONITOR_DEPLOYMENT_POLICY: '1'
           QR_MONITOR_PRIVATE_TOKEN: ${{ secrets.QR_MONITOR_PRIVATE_TOKEN }}
           QR_MONITOR_EXPECTED_HOST: ${{ vars.QR_MONITOR_EXPECTED_HOST }}
           QR_MONITOR_EXPECTED_RUNTIME_SHA256: ${{ vars.QR_MONITOR_EXPECTED_RUNTIME_SHA256 }}
@@ -45,19 +65,22 @@ jobs:
           QR_MONITOR_SLACK_TOKEN: ${{ secrets.QR_MONITOR_SLACK_TOKEN }}
           QR_MONITOR_GMAIL_APP_PASSWORD: ${{ secrets.QR_MONITOR_GMAIL_APP_PASSWORD }}
       - name: Check independent infrastructure evidence without sending
-        if: always() && vars.QR_INFRASTRUCTURE_OBSERVER_ENABLED == 'check'
+        if: always() && (vars.QR_INFRASTRUCTURE_OBSERVER_ENABLED == 'check' || (github.event_name == 'workflow_dispatch' && inputs.read_only == true))
         run: node --import tsx ops/monitor-infrastructure-observer.ts --check
         working-directory: monitor-source
         env:
+          QR_MONITOR_DEPLOYMENT_POLICY: '1'
+          QR_MONITOR_PRIVATE_TOKEN: ${{ secrets.QR_MONITOR_PRIVATE_TOKEN }}
           QR_INFRASTRUCTURE_EXPECTED_RUNTIME_SHA256: ${{ vars.QR_INFRASTRUCTURE_EXPECTED_RUNTIME_SHA256 }}
           QR_R2_ENDPOINT: ${{ secrets.QR_R2_ENDPOINT }}
           QR_MONITOR_R2_ACCESS_KEY_ID: ${{ secrets.QR_MONITOR_R2_ACCESS_KEY_ID }}
           QR_MONITOR_R2_SECRET_ACCESS_KEY: ${{ secrets.QR_MONITOR_R2_SECRET_ACCESS_KEY }}
       - name: Observe independent infrastructure completions
-        if: always() && vars.QR_INFRASTRUCTURE_OBSERVER_ENABLED == '1'
+        if: always() && vars.QR_INFRASTRUCTURE_OBSERVER_ENABLED == '1' && (github.event_name != 'workflow_dispatch' || inputs.read_only != true)
         run: node --import tsx ops/monitor-infrastructure-observer.ts
         working-directory: monitor-source
         env:
+          QR_MONITOR_DEPLOYMENT_POLICY: '1'
           QR_MONITOR_PRIVATE_TOKEN: ${{ secrets.QR_MONITOR_PRIVATE_TOKEN }}
           QR_INFRASTRUCTURE_EXPECTED_RUNTIME_SHA256: ${{ vars.QR_INFRASTRUCTURE_EXPECTED_RUNTIME_SHA256 }}
           QR_R2_ENDPOINT: ${{ secrets.QR_R2_ENDPOINT }}
