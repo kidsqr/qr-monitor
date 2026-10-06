@@ -15,12 +15,12 @@ jobs:
       github.ref == 'refs/heads/main' &&
       vars.QR_MONITOR_HEARTBEAT_OBSERVER_ENABLED == '1'
     runs-on: ubuntu-latest
-    timeout-minutes: 4
+    timeout-minutes: 8
     steps:
       - uses: actions/checkout@9f698171ed81b15d1823a05fc7211befd50c8ae0 # v6.0.3
         with:
           repository: kidsqr/qr-pages
-          ref: a6e750db796625d913af7949fea1f34fc814775c
+          ref: 334b3faf53d3493107cb129751b2573a130ac9f7
           token: ${{ secrets.QR_MONITOR_PRIVATE_TOKEN }}
           path: monitor-source
           persist-credentials: false
@@ -39,6 +39,27 @@ jobs:
           QR_MONITOR_PRIVATE_TOKEN: ${{ secrets.QR_MONITOR_PRIVATE_TOKEN }}
           QR_MONITOR_EXPECTED_HOST: ${{ vars.QR_MONITOR_EXPECTED_HOST }}
           QR_MONITOR_EXPECTED_RUNTIME_SHA256: ${{ vars.QR_MONITOR_EXPECTED_RUNTIME_SHA256 }}
+          QR_R2_ENDPOINT: ${{ secrets.QR_R2_ENDPOINT }}
+          QR_MONITOR_R2_ACCESS_KEY_ID: ${{ secrets.QR_MONITOR_R2_ACCESS_KEY_ID }}
+          QR_MONITOR_R2_SECRET_ACCESS_KEY: ${{ secrets.QR_MONITOR_R2_SECRET_ACCESS_KEY }}
+          QR_MONITOR_SLACK_TOKEN: ${{ secrets.QR_MONITOR_SLACK_TOKEN }}
+          QR_MONITOR_GMAIL_APP_PASSWORD: ${{ secrets.QR_MONITOR_GMAIL_APP_PASSWORD }}
+      - name: Check independent infrastructure evidence without sending
+        if: always() && vars.QR_INFRASTRUCTURE_OBSERVER_ENABLED == 'check'
+        run: node --import tsx ops/monitor-infrastructure-observer.ts --check
+        working-directory: monitor-source
+        env:
+          QR_INFRASTRUCTURE_EXPECTED_RUNTIME_SHA256: ${{ vars.QR_INFRASTRUCTURE_EXPECTED_RUNTIME_SHA256 }}
+          QR_R2_ENDPOINT: ${{ secrets.QR_R2_ENDPOINT }}
+          QR_MONITOR_R2_ACCESS_KEY_ID: ${{ secrets.QR_MONITOR_R2_ACCESS_KEY_ID }}
+          QR_MONITOR_R2_SECRET_ACCESS_KEY: ${{ secrets.QR_MONITOR_R2_SECRET_ACCESS_KEY }}
+      - name: Observe independent infrastructure completions
+        if: always() && vars.QR_INFRASTRUCTURE_OBSERVER_ENABLED == '1'
+        run: node --import tsx ops/monitor-infrastructure-observer.ts
+        working-directory: monitor-source
+        env:
+          QR_MONITOR_PRIVATE_TOKEN: ${{ secrets.QR_MONITOR_PRIVATE_TOKEN }}
+          QR_INFRASTRUCTURE_EXPECTED_RUNTIME_SHA256: ${{ vars.QR_INFRASTRUCTURE_EXPECTED_RUNTIME_SHA256 }}
           QR_R2_ENDPOINT: ${{ secrets.QR_R2_ENDPOINT }}
           QR_MONITOR_R2_ACCESS_KEY_ID: ${{ secrets.QR_MONITOR_R2_ACCESS_KEY_ID }}
           QR_MONITOR_R2_SECRET_ACCESS_KEY: ${{ secrets.QR_MONITOR_R2_SECRET_ACCESS_KEY }}
