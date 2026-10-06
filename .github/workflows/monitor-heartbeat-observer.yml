@@ -20,7 +20,7 @@ jobs:
       - uses: actions/checkout@9f698171ed81b15d1823a05fc7211befd50c8ae0 # v6.0.3
         with:
           repository: kidsqr/qr-pages
-          ref: 188a902ec3657394933468c8f5384cfad5f85b90
+          ref: a6e750db796625d913af7949fea1f34fc814775c
           token: ${{ secrets.QR_MONITOR_PRIVATE_TOKEN }}
           path: monitor-source
           persist-credentials: false
@@ -37,6 +37,8 @@ jobs:
         working-directory: monitor-source
         env:
           QR_MONITOR_PRIVATE_TOKEN: ${{ secrets.QR_MONITOR_PRIVATE_TOKEN }}
+          QR_MONITOR_EXPECTED_HOST: ${{ vars.QR_MONITOR_EXPECTED_HOST }}
+          QR_MONITOR_EXPECTED_RUNTIME_SHA256: ${{ vars.QR_MONITOR_EXPECTED_RUNTIME_SHA256 }}
           QR_R2_ENDPOINT: ${{ secrets.QR_R2_ENDPOINT }}
           QR_MONITOR_R2_ACCESS_KEY_ID: ${{ secrets.QR_MONITOR_R2_ACCESS_KEY_ID }}
           QR_MONITOR_R2_SECRET_ACCESS_KEY: ${{ secrets.QR_MONITOR_R2_SECRET_ACCESS_KEY }}
